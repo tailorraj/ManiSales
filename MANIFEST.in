@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include mani_sales_customization *.css
+recursive-include mani_sales_customization *.csv
+recursive-include mani_sales_customization *.html
+recursive-include mani_sales_customization *.ico
+recursive-include mani_sales_customization *.js
+recursive-include mani_sales_customization *.json
+recursive-include mani_sales_customization *.md
+recursive-include mani_sales_customization *.png
+recursive-include mani_sales_customization *.py
+recursive-include mani_sales_customization *.svg
+recursive-include mani_sales_customization *.txt
+recursive-exclude mani_sales_customization *.pyc
