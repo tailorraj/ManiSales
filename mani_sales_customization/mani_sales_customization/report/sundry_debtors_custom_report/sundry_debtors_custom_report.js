@@ -1,4 +1,4 @@
-// Copyright (c) 2022, raaj Tailor and contributors
+	// Copyright (c) 2022, raaj Tailor and contributors
 // For license information, please see license.txt
 /* eslint-disable */
 
@@ -43,6 +43,14 @@ frappe.query_reports["Sundry Debtors Custom Report"] = {
 			"label": __("Customer"),
 			"fieldtype": "Link",
 			"options": "Customer",
+			on_change:() =>{
+				var customer = frappe.query_report.get_filter_value('customer');
+				if(customer){
+					frappe.db.get_value('Customer', customer, ["tax_id", "customer_name"], function(value) {		
+							frappe.query_report.set_filter_value('customer_name', value["customer_name"]);
+						});
+				}
+			}
 			// on_change: () => {
 			// 	var customer = frappe.query_report.get_filter_value('customer');
 			// 	var company = frappe.query_report.get_filter_value('company');
