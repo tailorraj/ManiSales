@@ -123,6 +123,17 @@ app_license = "MIT"
 #		"mani_sales_customization.tasks.monthly"
 #	]
 # }
+fixtures = [
+
+    {"dt": "Custom Field", "filters": [
+        [
+            "name", "in", [
+				"Target Detail-brand"
+            ]
+        ]
+    ]},
+	
+]
 
 # Testing
 # -------

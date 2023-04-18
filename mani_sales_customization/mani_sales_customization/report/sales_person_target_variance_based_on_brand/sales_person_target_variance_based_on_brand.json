@@ -1,0 +1,57 @@
+{
+ "add_total_row": 0,
+ "columns": [],
+ "creation": "2023-04-07 12:40:40.747903",
+ "disable_prepared_report": 0,
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": "MSB letter head",
+ "modified": "2023-04-07 12:43:45.592549",
+ "modified_by": "Administrator",
+ "module": "Mani Sales Customization",
+ "name": "Sales Person Target Variance Based On Brand",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "Sales Order",
+ "report_name": "Sales Person Target Variance Based On Brand",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "Accounts User"
+  },
+  {
+   "role": "Maintenance User"
+  },
+  {
+   "role": "Stock User"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "Stock Manager"
+  },
+  {
+   "role": "Stores Stock User"
+  },
+  {
+   "role": "Sales & Purchase"
+  },
+  {
+   "role": "Sales Executive"
+  },
+  {
+   "role": "CEO"
+  },
+  {
+   "role": "Finance"
+  }
+ ]
+}
