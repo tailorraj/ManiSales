@@ -1,5 +1,5 @@
 {
- "add_total_row": 0,
+ "add_total_row": 1,
  "columns": [],
  "creation": "2023-04-07 12:40:40.747903",
  "disable_prepared_report": 0,
@@ -10,7 +10,7 @@
  "idx": 0,
  "is_standard": "Yes",
  "letter_head": "MSB letter head",
- "modified": "2023-04-07 12:43:45.592549",
+ "modified": "2023-04-29 13:15:22.463361",
  "modified_by": "Administrator",
  "module": "Mani Sales Customization",
  "name": "Sales Person Target Variance Based On Brand",
