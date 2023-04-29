@@ -47,7 +47,6 @@ frappe.query_reports["Sales Person Target Variance Based On Brand"] = {
 	],
 	"formatter": function (value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
-		console.log(data)
 
 		if (column.fieldname.includes('variance_key') ) {
 
