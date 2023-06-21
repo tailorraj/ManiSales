@@ -116,7 +116,22 @@ def get_data(filters , period_list):
 		"to_date":to_date
 	}),as_dict=1)
 
-	grouped_data = aggregate_data(filters.get('period'), sales_data, payment_data, period_list)
+	journal_entry_data = frappe.db.sql("""
+	select sum(jea.credit_in_account_currency) as paid_amount,si.sales_executive,si.cost_center,month(je.posting_date) as month,year(je.posting_date) as year
+	from 
+	`tabJournal Entry Account` jea inner join `tabJournal Entry`  je on je.name = jea.parent 
+	left join `tabSales Invoice` si on si.name = jea.reference_name
+	where jea.reference_type = "Sales Invoice" and je.docstatus = 1 and je.posting_date between %(from_date)s and %(to_date)s
+	group by 
+	month(je.posting_date),year(je.posting_date),si.cost_center,si.sales_executive
+	""",({
+		"from_date":from_date,
+		"to_date":to_date
+	}),as_dict=1) 
+
+	merged_data = merge_lists(payment_data , journal_entry_data)
+
+	grouped_data = aggregate_data(filters.get('period'), sales_data, merged_data, period_list)
 	return grouped_data
 
 def aggregate_data(period, sales_data, payment_data,period_list):
@@ -159,12 +174,14 @@ def aggregate_data(period, sales_data, payment_data,period_list):
 	new_agg_total_archived = defaultdict(lambda: defaultdict(float))
 	new_agg_total_variance = defaultdict(lambda: defaultdict(float))
 
+	prev_variance = {}
 	for key, value in agg_data.items():
 		sales_person, cost_center, period = key
 		sales_target = value['sales_target']
 		paid_amount = value['paid_amount']
 		variance = sales_target - paid_amount
-
+		
+		
 		total_target += sales_target
 		total_achieved += paid_amount
 		total_variance += variance
@@ -178,10 +195,18 @@ def aggregate_data(period, sales_data, payment_data,period_list):
 		if not new_agg_data[new_key]:
 			new_agg_data[new_key] = []
 
+		if new_key not in prev_variance:
+			prev_variance[new_key] = 0.0 
+		
+		agg_sales_target = sales_target + prev_variance[new_key]
+		agg_variance = agg_sales_target - paid_amount
+		prev_variance[new_key] = agg_variance
+		
+
 		new_agg_data[new_key].append({
 			period_key : paid_amount,
-			target_key : sales_target,
-			variance_key : variance
+			target_key : agg_sales_target,
+			variance_key : agg_variance
 		})
 
 		new_agg_total_target[new_key]["sales_target"] += sales_target
@@ -222,7 +247,18 @@ def filter_year(x , p):
 
 	return x['year'] >= start_.year and x['year'] <= end_.year
 
+def merge_lists(List1, List2):
+    merged_list = List1 + List2
+    merged_dict = {}
 
+    for d in merged_list:
+        key = (d['sales_executive'], d['cost_center'], d['month'], d['year'])
+        if key in merged_dict:
+            merged_dict[key]['paid_amount'] += d['paid_amount']
+        else:
+            merged_dict[key] = d
+
+    return list(merged_dict.values())
 # def get_columns(filters):
 # 	columns = [{
 # 		"fieldname": "cost_center",
