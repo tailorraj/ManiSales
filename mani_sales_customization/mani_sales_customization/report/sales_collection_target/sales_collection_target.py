@@ -101,18 +101,6 @@ def get_data(filters , period_list):
 	fiscal_year = get_fiscal_year(fiscal_year=filters.get("fiscal_year"), as_dict=1)
 	from_date,to_date = fiscal_year.year_start_date, fiscal_year.year_end_date
 
-	# sales_credi_note = frappe.db.sql("""
-	# select 
-	# si.rounded_total as sales_target,si.sales_executive,si.cost_center, month(si.due_date) as month, year(si.due_date) as year 
-	# from 
-	# `tabSales Invoice` si
-	# where si.docstatus = 1 and si.is_return = 1 and si.due_date between %(from_date)s and %(to_date)s
-	# group by si.cost_center,month(si.due_date),year(si.due_date),si.sales_executive
-	# """,{
-	# 	"from_date":from_date,
-	# 	"to_date":to_date
-	# },as_dict=1)
-
 	sales_data = frappe.db.sql("""
 	select 
 	sum(ps.payment_amount) as sales_target,si.sales_executive,si.cost_center, month(ps.due_date) as month, year(ps.due_date) as year 
@@ -178,14 +166,9 @@ def get_data(filters , period_list):
 		"from_date":from_date,
 	}),as_dict=1) 
 
-	# frappe.msgprint(str(payment_data))
-	# frappe.msgprint(str(journal_entry_data))
-
-	# merged_sales_data = merge_sales_lists(sales_credi_note , sales_data)
 	merged_sales_data = sales_data
 	merged_payment_data = merge_lists(payment_data , journal_entry_data)
 	merged_carryforwared_data_dict = merge_carryforward_lists(payment_data_before , journal_entry_data_before)
-	# frappe.msgprint(str(merged_carryforwared_data_dict))
 	grouped_data = aggregate_data(filters.get('period'), merged_sales_data, merged_payment_data, period_list , merged_carryforwared_data_dict)
 	return grouped_data
 
