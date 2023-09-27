@@ -7,6 +7,7 @@ from erpnext.accounts.report.financial_statements import get_period_list
 from erpnext.accounts.utils import get_fiscal_year
 from collections import defaultdict
 from datetime import datetime,date
+from functools import reduce
 
 
 def execute(filters=None):
@@ -99,11 +100,10 @@ def get_columns(filters, period_list):
 def get_data(filters , period_list):
 	fiscal_year = get_fiscal_year(fiscal_year=filters.get("fiscal_year"), as_dict=1)
 	from_date,to_date = fiscal_year.year_start_date, fiscal_year.year_end_date
-	# frappe.msgprint(str(from_date))
-	# frappe.msgprint(str(to_date))
+
 	sales_data = frappe.db.sql("""
 	select 
-	sum(ps.payment_amount) as sales_target,si.sales_executive,si.cost_center,month(ps.due_date) as month,year(ps.due_date) as year 
+	sum(ps.payment_amount) as sales_target,si.sales_executive,si.cost_center, month(ps.due_date) as month, year(ps.due_date) as year 
 	from 
 	`tabSales Invoice` si inner join `tabPayment Schedule` ps on si.name = ps.parent
 	where si.docstatus = 1 and ps.due_date between %(from_date)s and %(to_date)s
@@ -118,7 +118,7 @@ def get_data(filters , period_list):
 	from 
 	`tabPayment Entry Reference` per inner join `tabPayment Entry`  pe on pe.name = per.parent 
 	left join `tabSales Invoice` si on si.name = per.reference_name
-	where per.reference_doctype = "Sales Invoice" and pe.docstatus = 1 and pe.posting_date between %(from_date)s and %(to_date)s
+	where pe.docstatus = 1 and pe.posting_date between %(from_date)s and %(to_date)s
 	group by 
 	month(pe.posting_date),year(pe.posting_date),si.cost_center,si.sales_executive
 	""",({
@@ -126,6 +126,21 @@ def get_data(filters , period_list):
 		"to_date":to_date
 	}),as_dict=1)
 
+	payment_data_before = frappe.db.sql("""
+	select sum(per.allocated_amount) as paid_amount,si.sales_executive,si.cost_center,month(pe.posting_date) as month,year(pe.posting_date) as year
+	from 
+	`tabPayment Entry Reference` per inner join `tabPayment Entry`  pe on pe.name = per.parent 
+	left join `tabSales Invoice` si on si.name = per.reference_name
+	where pe.docstatus = 1 and pe.posting_date < %(from_date)s
+	group by 
+	month(pe.posting_date),year(pe.posting_date),si.cost_center,si.sales_executive
+	""",({
+		"from_date":from_date,
+	}),as_dict=1)
+
+	# total_carryforward_payment_before = reduce(sum_of_amount , payment_data_before , 0.0) 
+	
+	
 	journal_entry_data = frappe.db.sql("""
 	select sum(jea.credit_in_account_currency) as paid_amount,si.sales_executive,si.cost_center,month(je.posting_date) as month,year(je.posting_date) as year
 	from 
@@ -139,11 +154,29 @@ def get_data(filters , period_list):
 		"to_date":to_date
 	}),as_dict=1) 
 
-	merged_data = merge_lists(payment_data , journal_entry_data)
-	grouped_data = aggregate_data(filters.get('period'), sales_data, merged_data, period_list)
+	journal_entry_data_before = frappe.db.sql("""
+	select sum(jea.credit_in_account_currency) as paid_amount,si.sales_executive,si.cost_center,month(je.posting_date) as month,year(je.posting_date) as year
+	from 
+	`tabJournal Entry Account` jea inner join `tabJournal Entry`  je on je.name = jea.parent 
+	left join `tabSales Invoice` si on si.name = jea.reference_name
+	where jea.reference_type = "Sales Invoice" and je.docstatus = 1 and je.posting_date < %(from_date)s
+	group by 
+	month(je.posting_date),year(je.posting_date),si.cost_center,si.sales_executive
+	""",({
+		"from_date":from_date,
+	}),as_dict=1) 
+
+	merged_sales_data = sales_data
+	merged_payment_data = merge_lists(payment_data , journal_entry_data)
+	merged_carryforwared_data_dict = merge_carryforward_lists(payment_data_before , journal_entry_data_before)
+	grouped_data = aggregate_data(filters.get('period'), merged_sales_data, merged_payment_data, period_list , merged_carryforwared_data_dict)
 	return grouped_data
 
-def aggregate_data(period, sales_data, payment_data,period_list):
+def sum_of_amount(acc , data):
+	acc += data["paid_amount"]
+	return acc
+
+def aggregate_data(period, sales_data, payment_data,period_list , merged_carryforwared_data):
 	period_dict = {'Monthly': 1, 'Quarterly': 3, 'Half-Yearly': 6, 'Yearly': 12}
 	period_value = period_dict[period]
 
@@ -206,7 +239,7 @@ def aggregate_data(period, sales_data, payment_data,period_list):
 			new_agg_data[new_key] = []
 
 		if new_key not in prev_variance:
-			prev_variance[new_key] = 0.0 
+			prev_variance[new_key] = merged_carryforwared_data[new_key]["paid_amount"] if new_key in merged_carryforwared_data else 0.0
 		
 		agg_sales_target = sales_target + prev_variance[new_key]
 		carry_forward_amount = prev_variance[new_key]
@@ -269,6 +302,32 @@ def merge_lists(List1, List2):
             merged_dict[key] = d
 
     return list(merged_dict.values())
+
+def merge_carryforward_lists(List1, List2):
+    merged_list = List1 + List2
+    merged_dict = {}
+
+    for d in merged_list:
+        key = (d['sales_executive'], d['cost_center'])
+        if key in merged_dict:
+            merged_dict[key]['paid_amount'] += d['paid_amount']
+        else:
+            merged_dict[key] = d
+
+    return merged_dict
+
+def merge_sales_lists(List1, List2):
+    merged_list = List1 + List2
+    merged_dict = {}
+
+    for d in merged_list:
+        key = (d['sales_executive'], d['cost_center'], d['month'], d['year'])
+        if key in merged_dict:
+            merged_dict[key]['sales_target'] += d['sales_target']
+        else:
+            merged_dict[key] = d
+
+    return list(merged_dict.values())	
 # def get_columns(filters):
 # 	columns = [{
 # 		"fieldname": "cost_center",
